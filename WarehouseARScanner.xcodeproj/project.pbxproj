@@ -1,0 +1,288 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2A1111111111111111111111 /* WarehouseARScanner/App/WarehouseARScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1111111111111111111111 /* WarehouseARScanner/App/WarehouseARScannerApp.swift */; };
+		2A2222222222222222222222 /* WarehouseARScanner/Models/StorageLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2222222222222222222222 /* WarehouseARScanner/Models/StorageLabel.swift */; };
+		2A3333333333333333333333 /* WarehouseARScanner/Models/APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A3333333333333333333333 /* WarehouseARScanner/Models/APIModels.swift */; };
+		2A4444444444444444444444 /* WarehouseARScanner/Models/DetectionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4444444444444444444444 /* WarehouseARScanner/Models/DetectionResult.swift */; };
+		2A5555555555555555555555 /* WarehouseARScanner/Services/ARKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A5555555555555555555555 /* WarehouseARScanner/Services/ARKitService.swift */; };
+		2A6666666666666666666666 /* WarehouseARScanner/Services/VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A6666666666666666666666 /* WarehouseARScanner/Services/VisionService.swift */; };
+		2A7777777777777777777777 /* WarehouseARScanner/Services/APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A7777777777777777777777 /* WarehouseARScanner/Services/APIService.swift */; };
+		2A8888888888888888888888 /* WarehouseARScanner/ViewModels/ScanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8888888888888888888888 /* WarehouseARScanner/ViewModels/ScanViewModel.swift */; };
+		2A9999999999999999999999 /* WarehouseARScanner/ViewModels/InventoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A9999999999999999999999 /* WarehouseARScanner/ViewModels/InventoryViewModel.swift */; };
+		2AAAAAAAAAAAAAAAAAAAAAAA /* WarehouseARScanner/ViewModels/ComparisonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AAAAAAAAAAAAAAAAAAAAAAA /* WarehouseARScanner/ViewModels/ComparisonViewModel.swift */; };
+		2ABBBBBBBBBBBBBBBBBBBBBB /* WarehouseARScanner/Views/ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABBBBBBBBBBBBBBBBBBBBBB /* WarehouseARScanner/Views/ContentView.swift */; };
+		2ACCCCCCCCCCCCCCCCCCCCCC /* WarehouseARScanner/Views/ScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACCCCCCCCCCCCCCCCCCCCCC /* WarehouseARScanner/Views/ScannerView.swift */; };
+		2ADDDDDDDDDDDDDDDDDDDDDD /* WarehouseARScanner/Views/PaperScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ADDDDDDDDDDDDDDDDDDDDDD /* WarehouseARScanner/Views/PaperScanView.swift */; };
+		2AEEEEEEEEEEEEEEEEEEEEE /* WarehouseARScanner/Views/ResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEEEEEEEEEEEEEEEEEEEEE /* WarehouseARScanner/Views/ResultsView.swift */; };
+		2AFFFFFFFFFFFFFFFFFFFFA /* WarehouseARScanner/Views/ARViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFFFFFFFFFFFFFFFFFFFFA /* WarehouseARScanner/Views/ARViewContainer.swift */; };
+		2B0000000000000000000000 /* WarehouseARScanner/Utils/Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000000000000000000000 /* WarehouseARScanner/Utils/Constants.swift */; };
+		2B1111111111111111111111 /* WarehouseARScanner/Utils/Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B1111111111111111111111 /* WarehouseARScanner/Utils/Extensions.swift */; };
+		2B2222222222222222222222 /* WarehouseARScanner/Utils/Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2222222222222222222222 /* WarehouseARScanner/Utils/Logger.swift */; };
+		2B3333333333333333333333 /* WarehouseARScanner/Utils/LabelParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B3333333333333333333333 /* WarehouseARScanner/Utils/LabelParser.swift */; };
+		2B4444444444444444444444 /* WarehouseARScanner/Utils/Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B4444444444444444444444 /* WarehouseARScanner/Utils/Mocks.swift */; };
+		2B5555555555555555555555 /* WarehouseARScanner/Utils/NetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5555555555555555555555 /* WarehouseARScanner/Utils/NetworkManager.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1A1111111111111111111111 /* WarehouseARScanner/App/WarehouseARScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/App/WarehouseARScannerApp.swift; sourceTree = SOURCE_ROOT; };
+		1A2222222222222222222222 /* WarehouseARScanner/Models/StorageLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Models/StorageLabel.swift; sourceTree = SOURCE_ROOT; };
+		1A3333333333333333333333 /* WarehouseARScanner/Models/APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Models/APIModels.swift; sourceTree = SOURCE_ROOT; };
+		1A4444444444444444444444 /* WarehouseARScanner/Models/DetectionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Models/DetectionResult.swift; sourceTree = SOURCE_ROOT; };
+		1A5555555555555555555555 /* WarehouseARScanner/Services/ARKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Services/ARKitService.swift; sourceTree = SOURCE_ROOT; };
+		1A6666666666666666666666 /* WarehouseARScanner/Services/VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Services/VisionService.swift; sourceTree = SOURCE_ROOT; };
+		1A7777777777777777777777 /* WarehouseARScanner/Services/APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Services/APIService.swift; sourceTree = SOURCE_ROOT; };
+		1A8888888888888888888888 /* WarehouseARScanner/ViewModels/ScanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/ViewModels/ScanViewModel.swift; sourceTree = SOURCE_ROOT; };
+		1A9999999999999999999999 /* WarehouseARScanner/ViewModels/InventoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/ViewModels/InventoryViewModel.swift; sourceTree = SOURCE_ROOT; };
+		1AAAAAAAAAAAAAAAAAAAAAAA /* WarehouseARScanner/ViewModels/ComparisonViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/ViewModels/ComparisonViewModel.swift; sourceTree = SOURCE_ROOT; };
+		1ABBBBBBBBBBBBBBBBBBBBBB /* WarehouseARScanner/Views/ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Views/ContentView.swift; sourceTree = SOURCE_ROOT; };
+		1ACCCCCCCCCCCCCCCCCCCCCC /* WarehouseARScanner/Views/ScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Views/ScannerView.swift; sourceTree = SOURCE_ROOT; };
+		1ADDDDDDDDDDDDDDDDDDDDDD /* WarehouseARScanner/Views/PaperScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Views/PaperScanView.swift; sourceTree = SOURCE_ROOT; };
+		1AEEEEEEEEEEEEEEEEEEEEE /* WarehouseARScanner/Views/ResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Views/ResultsView.swift; sourceTree = SOURCE_ROOT; };
+		1AFFFFFFFFFFFFFFFFFFFFA /* WarehouseARScanner/Views/ARViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Views/ARViewContainer.swift; sourceTree = SOURCE_ROOT; };
+		1B0000000000000000000000 /* WarehouseARScanner/Utils/Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Utils/Constants.swift; sourceTree = SOURCE_ROOT; };
+		1B1111111111111111111111 /* WarehouseARScanner/Utils/Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Utils/Extensions.swift; sourceTree = SOURCE_ROOT; };
+		1B2222222222222222222222 /* WarehouseARScanner/Utils/Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Utils/Logger.swift; sourceTree = SOURCE_ROOT; };
+		1B3333333333333333333333 /* WarehouseARScanner/Utils/LabelParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Utils/LabelParser.swift; sourceTree = SOURCE_ROOT; };
+		1B4444444444444444444444 /* WarehouseARScanner/Utils/Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Utils/Mocks.swift; sourceTree = SOURCE_ROOT; };
+		1B5555555555555555555555 /* WarehouseARScanner/Utils/NetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift.swift; path = WarehouseARScanner/Utils/NetworkManager.swift; sourceTree = SOURCE_ROOT; };
+		1B6666666666666666666666 /* WarehouseARScanner/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = WarehouseARScanner/Info.plist; sourceTree = SOURCE_ROOT; };
+		4A3333333333333333333333 /* WarehouseARScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WarehouseARScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3A2222222222222222222222 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4A1111111111111111111111 /* WarehouseARScanner */ = {
+			isa = PBXGroup;
+			children = (
+				1A1111111111111111111111 /* WarehouseARScanner/App/WarehouseARScannerApp.swift */,
+				1A2222222222222222222222 /* WarehouseARScanner/Models/StorageLabel.swift */,
+				1A3333333333333333333333 /* WarehouseARScanner/Models/APIModels.swift */,
+				1A4444444444444444444444 /* WarehouseARScanner/Models/DetectionResult.swift */,
+				1A5555555555555555555555 /* WarehouseARScanner/Services/ARKitService.swift */,
+				1A6666666666666666666666 /* WarehouseARScanner/Services/VisionService.swift */,
+				1A7777777777777777777777 /* WarehouseARScanner/Services/APIService.swift */,
+				1A8888888888888888888888 /* WarehouseARScanner/ViewModels/ScanViewModel.swift */,
+				1A9999999999999999999999 /* WarehouseARScanner/ViewModels/InventoryViewModel.swift */,
+				1AAAAAAAAAAAAAAAAAAAAAAA /* WarehouseARScanner/ViewModels/ComparisonViewModel.swift */,
+				1ABBBBBBBBBBBBBBBBBBBBBB /* WarehouseARScanner/Views/ContentView.swift */,
+				1ACCCCCCCCCCCCCCCCCCCCCC /* WarehouseARScanner/Views/ScannerView.swift */,
+				1ADDDDDDDDDDDDDDDDDDDDDD /* WarehouseARScanner/Views/PaperScanView.swift */,
+				1AEEEEEEEEEEEEEEEEEEEEE /* WarehouseARScanner/Views/ResultsView.swift */,
+				1AFFFFFFFFFFFFFFFFFFFFA /* WarehouseARScanner/Views/ARViewContainer.swift */,
+				1B0000000000000000000000 /* WarehouseARScanner/Utils/Constants.swift */,
+				1B1111111111111111111111 /* WarehouseARScanner/Utils/Extensions.swift */,
+				1B2222222222222222222222 /* WarehouseARScanner/Utils/Logger.swift */,
+				1B3333333333333333333333 /* WarehouseARScanner/Utils/LabelParser.swift */,
+				1B4444444444444444444444 /* WarehouseARScanner/Utils/Mocks.swift */,
+				1B5555555555555555555555 /* WarehouseARScanner/Utils/NetworkManager.swift */,
+				1B6666666666666666666666 /* WarehouseARScanner/Info.plist */,
+			);
+			path = WarehouseARScanner;
+			sourceTree = SOURCE_ROOT;
+		};
+		4A2222222222222222222222 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4A3333333333333333333333 /* WarehouseARScanner.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4A4444444444444444444444 /* WarehouseARScanner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A1111111111111111111111 /* Build configuration list for PBXNativeTarget "WarehouseARScanner" */;
+			buildPhases = (
+				3A2222222222222222222222 /* Frameworks */,
+				3A3333333333333333333333 /* Resources */,
+				3A1111111111111111111111 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WarehouseARScanner;
+			productName = WarehouseARScanner;
+			productReference = 4A3333333333333333333333 /* WarehouseARScanner.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4A5555555555555555555555 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					4A4444444444444444444444 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 5A2222222222222222222222 /* Build configuration list for PBXProject "WarehouseARScanner" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 4A1111111111111111111111 /* WarehouseARScanner */;
+			productRefGroup = 4A2222222222222222222222 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				4A4444444444444444444444 /* WarehouseARScanner */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3A3333333333333333333333 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3A1111111111111111111111 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A1111111111111111111111 /* WarehouseARScanner/App/WarehouseARScannerApp.swift in Sources */,
+				2A2222222222222222222222 /* WarehouseARScanner/Models/StorageLabel.swift in Sources */,
+				2A3333333333333333333333 /* WarehouseARScanner/Models/APIModels.swift in Sources */,
+				2A4444444444444444444444 /* WarehouseARScanner/Models/DetectionResult.swift in Sources */,
+				2A5555555555555555555555 /* WarehouseARScanner/Services/ARKitService.swift in Sources */,
+				2A6666666666666666666666 /* WarehouseARScanner/Services/VisionService.swift in Sources */,
+				2A7777777777777777777777 /* WarehouseARScanner/Services/APIService.swift in Sources */,
+				2A8888888888888888888888 /* WarehouseARScanner/ViewModels/ScanViewModel.swift in Sources */,
+				2A9999999999999999999999 /* WarehouseARScanner/ViewModels/InventoryViewModel.swift in Sources */,
+				2AAAAAAAAAAAAAAAAAAAAAAA /* WarehouseARScanner/ViewModels/ComparisonViewModel.swift in Sources */,
+				2ABBBBBBBBBBBBBBBBBBBBBB /* WarehouseARScanner/Views/ContentView.swift in Sources */,
+				2ACCCCCCCCCCCCCCCCCCCCCC /* WarehouseARScanner/Views/ScannerView.swift in Sources */,
+				2ADDDDDDDDDDDDDDDDDDDDDD /* WarehouseARScanner/Views/PaperScanView.swift in Sources */,
+				2AEEEEEEEEEEEEEEEEEEEEE /* WarehouseARScanner/Views/ResultsView.swift in Sources */,
+				2AFFFFFFFFFFFFFFFFFFFFA /* WarehouseARScanner/Views/ARViewContainer.swift in Sources */,
+				2B0000000000000000000000 /* WarehouseARScanner/Utils/Constants.swift in Sources */,
+				2B1111111111111111111111 /* WarehouseARScanner/Utils/Extensions.swift in Sources */,
+				2B2222222222222222222222 /* WarehouseARScanner/Utils/Logger.swift in Sources */,
+				2B3333333333333333333333 /* WarehouseARScanner/Utils/LabelParser.swift in Sources */,
+				2B4444444444444444444444 /* WarehouseARScanner/Utils/Mocks.swift in Sources */,
+				2B5555555555555555555555 /* WarehouseARScanner/Utils/NetworkManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5A3333333333333333333333 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LANGUAGE_DIALECT = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 67FKYW6335;
+				INFOPLIST_FILE = WarehouseARScanner/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.warehouse.arscanner;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.7;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		5A4444444444444444444444 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LANGUAGE_DIALECT = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 67FKYW6335;
+				INFOPLIST_FILE = WarehouseARScanner/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.warehouse.arscanner;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.7;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		5A5555555555555555555555 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.7;
+			};
+			name = Debug;
+		};
+		5A6666666666666666666666 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.7;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5A1111111111111111111111 /* Build configuration list for PBXNativeTarget "WarehouseARScanner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A3333333333333333333333 /* Debug */,
+				5A4444444444444444444444 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A2222222222222222222222 /* Build configuration list for PBXProject "WarehouseARScanner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A5555555555555555555555 /* Debug */,
+				5A6666666666666666666666 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4A5555555555555555555555 /* Project object */;
+}
