@@ -4,7 +4,10 @@ import Vision
 
 class ScanViewModel: NSObject, ObservableObject {
     @Published var detectedLabels: [StorageLabel] = []
+    @Published var shelfRecords: [WarehouseRecord] = []
     @Published var currentARLabel: StorageLabel?
+    @Published var currentShelfRecord: WarehouseRecord?
+    @Published var liveFeedback: LiveScanFeedback?
     @Published var isScanning: Bool = false
     @Published var averageConfidence: Float = 0
     @Published var lastDetectionTime: Date?
@@ -23,6 +26,15 @@ class ScanViewModel: NSObject, ObservableObject {
         visionService.detectionCallback = { [weak self] detection in
             self?.processDetection(detection)
         }
+
+        visionService.liveFeedbackCallback = { [weak self] feedback in
+            self?.processLiveFeedback(feedback)
+        }
+    }
+
+    private func processLiveFeedback(_ feedback: LiveScanFeedback) {
+        guard isScanning else { return }
+        liveFeedback = feedback
     }
 
     func startScanning() {
@@ -44,7 +56,8 @@ class ScanViewModel: NSObject, ObservableObject {
             return
         }
 
-        if let formatted = LabelParser.parseLabelText(detection.detectedText) {
+        if let record = LabelParser.parseWarehouseRecord(detection.detectedText, confidence: detection.confidence) {
+            let formatted = record.displayText
 
             // Avoid duplicate detections in short time window
             if let cached = detectionCache[formatted],
@@ -60,10 +73,15 @@ class ScanViewModel: NSObject, ObservableObject {
 
             DispatchQueue.main.async {
                 self.currentARLabel = label
+                self.currentShelfRecord = record
 
                 // Add to list if not already present
                 if !self.detectedLabels.contains(where: { $0.text == formatted }) {
                     self.detectedLabels.append(label)
+                }
+
+                if !self.shelfRecords.contains(where: { $0.location == record.location && $0.itemNumber == record.itemNumber }) {
+                    self.shelfRecords.append(record)
                 }
 
                 self.detectionCache[formatted] = label
@@ -86,7 +104,10 @@ class ScanViewModel: NSObject, ObservableObject {
     func clearDetections() {
         detectedLabels.removeAll()
         detectionCache.removeAll()
+        shelfRecords.removeAll()
         currentARLabel = nil
+        currentShelfRecord = nil
+        liveFeedback = nil
         averageConfidence = 0
         lastDetectionTime = nil
     }

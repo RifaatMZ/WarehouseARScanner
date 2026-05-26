@@ -4,11 +4,12 @@ struct ResultsView: View {
     @ObservedObject var scanViewModel: ScanViewModel
     @ObservedObject var inventoryViewModel: InventoryViewModel
     @ObservedObject var comparisonViewModel: ComparisonViewModel
+    @State private var lastVerifiedAt: Date?
 
     var body: some View {
         NavigationView {
             VStack {
-                if scanViewModel.detectedLabels.isEmpty && inventoryViewModel.matchedItems.isEmpty {
+                if scanViewModel.shelfRecords.isEmpty && comparisonViewModel.paperRecords.isEmpty && inventoryViewModel.matchedItems.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 60))
@@ -24,41 +25,140 @@ struct ResultsView: View {
                     .frame(maxHeight: .infinity, alignment: .center)
                 } else {
                     List {
-                        if !scanViewModel.detectedLabels.isEmpty {
-                            Section("Detected Labels") {
-                                ForEach(scanViewModel.detectedLabels) { label in
+                        if !comparisonViewModel.paperRecords.isEmpty || !scanViewModel.shelfRecords.isEmpty {
+                            Section("Verification Summary") {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Label("\(matchingResultCount)", systemImage: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+
+                                        Spacer()
+
+                                        Label("\(pendingResultCount)", systemImage: "questionmark.circle.fill")
+                                            .foregroundColor(.orange)
+
+                                        Spacer()
+
+                                        Label("\(failedResultCount)", systemImage: "xmark.circle.fill")
+                                            .foregroundColor(.red)
+                                    }
+                                    .font(.caption)
+
+                                    if let lastVerifiedAt {
+                                        Text("Verified \(lastVerifiedAt.shortTimeAgo)")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Results update as shelf records are scanned. Tap Verify to mark the current scan set.")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+
+                        if !scanViewModel.shelfRecords.isEmpty {
+                            Section("Scanned Shelf Records") {
+                                ForEach(scanViewModel.shelfRecords) { record in
                                     VStack(alignment: .leading, spacing: 4) {
                                         HStack {
-                                            Text(label.text)
+                                            Text(record.location)
                                                 .font(.headline)
+                                                .monospacedDigit()
 
                                             Spacer()
 
-                                            Text(label.confidence.percentageString)
+                                            Text(record.confidence.percentageString)
                                                 .font(.caption)
                                                 .padding(4)
                                                 .background(
-                                                    label.confidence >= Constants.confidenceThreshold ?
+                                                    record.confidence >= Constants.confidenceThreshold ?
                                                     Color.green.opacity(0.3) : Color.orange.opacity(0.3)
                                                 )
                                                 .cornerRadius(4)
                                         }
 
-                                        if let components = label.parsedComponents {
-                                            HStack(spacing: 12) {
-                                                Label(components.section, systemImage: "rectangle.fill")
-                                                Label(components.row, systemImage: "rectangle.fill")
-                                                Label(components.column, systemImage: "rectangle.fill")
-                                            }
+                                        Text("Item: \(record.itemNumber)")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
-                                        }
+                                            .monospacedDigit()
 
-                                        Text(label.detectionTime.formatted(style: .short))
+                                        Text(record.timestamp.formatted(style: .short))
                                             .font(.caption2)
                                             .foregroundColor(.gray)
                                     }
                                     .padding(.vertical, 4)
+                                }
+                            }
+                        }
+
+                        if !comparisonViewModel.paperRecords.isEmpty {
+                            Section("Paper Records") {
+                                ForEach(comparisonViewModel.paperRecords) { record in
+                                    let result = comparisonViewModel.verificationResult(
+                                        for: record,
+                                        shelfRecords: scanViewModel.shelfRecords
+                                    )
+
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack {
+                                            Text(record.itemNumber)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                                .monospacedDigit()
+
+                                            Spacer()
+
+                                            Text(record.location)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                                .monospacedDigit()
+                                        }
+
+                                        Text(resultStatusText(for: result))
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 8)
+                                    .background(resultColor(for: result))
+                                    .cornerRadius(6)
+                                }
+                            }
+
+                            Section("Verification") {
+                                ForEach(comparisonViewModel.verificationResults(for: scanViewModel.shelfRecords)) { result in
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack {
+                                            Image(systemName: result.matches ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                                .foregroundColor(result.matches ? .green : .red)
+
+                                            Text(result.itemNumber)
+                                                .font(.headline)
+                                                .monospacedDigit()
+
+                                            Spacer()
+                                        }
+
+                                        Text(result.statusText)
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(result.matches ? .green : .red)
+
+                                        HStack {
+                                            Text("Paper: \(result.expectedLocation)")
+                                            Spacer()
+                                            Text("Shelf: \(result.actualLocation)")
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .monospacedDigit()
+                                    }
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 8)
+                                    .background(resultColor(for: result))
+                                    .cornerRadius(6)
                                 }
                             }
                         }
@@ -167,9 +267,16 @@ struct ResultsView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button(action: {
+                            lastVerifiedAt = Date()
+                        }) {
+                            Label("Verify Now", systemImage: "checkmark.seal")
+                        }
+
+                        Button(action: {
                             scanViewModel.clearDetections()
                             inventoryViewModel.clearResults()
                             comparisonViewModel.clearComparison()
+                            lastVerifiedAt = nil
                         }) {
                             Label("Clear All", systemImage: "trash")
                         }
@@ -197,6 +304,25 @@ struct ResultsView: View {
             report += "  - \(label.text) (\(label.confidence.percentageString))\n"
         }
 
+        report += "\nScanned Shelf Records: \(scanViewModel.shelfRecords.count)\n"
+        for record in scanViewModel.shelfRecords {
+            report += "  - \(record.location): \(record.itemNumber) (\(record.confidence.percentageString))\n"
+        }
+
+        report += "\nPaper Records: \(comparisonViewModel.paperRecords.count)\n"
+        for record in comparisonViewModel.paperRecords {
+            report += "  - \(record.itemNumber): \(record.location)\n"
+        }
+
+        let verificationResults = comparisonViewModel.verificationResults(for: scanViewModel.shelfRecords)
+        if !verificationResults.isEmpty {
+            report += "\nVerification:\n"
+            for result in verificationResults {
+                let status = result.matches ? "MATCH" : "MISMATCH"
+                report += "  - \(result.itemNumber): \(status) paper=\(result.expectedLocation), shelf=\(result.actualLocation)\n"
+            }
+        }
+
         report += "\nMatched Items: \(inventoryViewModel.matchedItems.count)\n"
         for item in inventoryViewModel.matchedItems {
             report += "  - \(item.formattedLocation): \(item.description) (Qty: \(item.quantity))\n"
@@ -209,6 +335,46 @@ struct ResultsView: View {
         }
 
         return report
+    }
+
+    private var currentVerificationResults: [VerificationResult] {
+        comparisonViewModel.verificationResults(for: scanViewModel.shelfRecords)
+    }
+
+    private var matchingResultCount: Int {
+        currentVerificationResults.filter(\.matches).count
+    }
+
+    private var pendingResultCount: Int {
+        guard scanViewModel.shelfRecords.isEmpty else {
+            return 0
+        }
+
+        return comparisonViewModel.paperRecords.count
+    }
+
+    private var failedResultCount: Int {
+        currentVerificationResults.filter { !$0.matches }.count - pendingResultCount
+    }
+
+    private func resultColor(for result: VerificationResult) -> Color {
+        if result.matches {
+            return Color.green.opacity(0.18)
+        }
+
+        if scanViewModel.shelfRecords.isEmpty && result.shelfRecord == nil {
+            return Color.yellow.opacity(0.22)
+        }
+
+        return Color.red.opacity(0.18)
+    }
+
+    private func resultStatusText(for result: VerificationResult) -> String {
+        if scanViewModel.shelfRecords.isEmpty && result.shelfRecord == nil {
+            return "Waiting for AR shelf scan"
+        }
+
+        return result.statusText
     }
 }
 

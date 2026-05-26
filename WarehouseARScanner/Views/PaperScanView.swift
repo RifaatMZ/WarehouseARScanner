@@ -6,8 +6,10 @@ struct PaperScanView: View {
     @AppStorage(LabelParser.customFormatEnabledKey) private var customFormatEnabled = false
     @AppStorage(LabelParser.customFormatKey) private var customFormat = LabelParser.defaultFormat
     @State private var showPhotoPicker = false
+    @State private var showCamera = false
     @State private var selectedImage: UIImage?
     @State private var detectedText: String?
+    @State private var detectedRecords: [WarehouseRecord] = []
     @State private var isProcessing = false
 
     var body: some View {
@@ -60,13 +62,56 @@ struct PaperScanView: View {
                     .padding()
                 }
 
+                if !detectedRecords.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Detected Paper Rows")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+
+                        ScrollView {
+                            VStack(spacing: 6) {
+                                ForEach(detectedRecords) { record in
+                                    HStack {
+                                        Text(record.itemNumber)
+                                            .font(.subheadline)
+                                            .monospacedDigit()
+
+                                        Spacer()
+
+                                        Text(record.location)
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .monospacedDigit()
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            }
+                        }
+                        .frame(maxHeight: 180)
+                    }
+                    .padding()
+                }
+
                 Spacer()
 
                 VStack(spacing: 12) {
+                    Button(action: { showCamera = true }) {
+                        HStack {
+                            Image(systemName: "camera.fill")
+                            Text("Scan Paper with Camera")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    .disabled(!CameraPicker.isAvailable)
+
                     Button(action: { showPhotoPicker = true }) {
                         HStack {
                             Image(systemName: "photo.fill")
-                            Text("Select Photo")
+                            Text(detectedRecords.isEmpty ? "Select from Photos" : "Add from Photos")
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -79,17 +124,13 @@ struct PaperScanView: View {
                         ProgressView("Processing...")
                             .frame(maxWidth: .infinity)
                             .padding()
-                    } else if selectedImage != nil && detectedText != nil {
+                    } else if !detectedRecords.isEmpty {
                         Button(action: {
-                            if let detectedLabel = detectedText,
-                               let formattedLabel = LabelParser.parseLabelText(detectedLabel) {
-                                let paperLabel = StorageLabel(text: formattedLabel, confidence: 0.9, detectionTime: Date())
-                                comparisonViewModel.paperResult = paperLabel
-                            }
+                            comparisonViewModel.appendPaperRecords(detectedRecords)
                         }) {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
-                                Text("Confirm Detection")
+                                Text("Use Paper Rows")
                             }
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -102,6 +143,7 @@ struct PaperScanView: View {
                     Button(action: {
                         selectedImage = nil
                         detectedText = nil
+                        detectedRecords = []
                     }) {
                         Text("Clear")
                             .frame(maxWidth: .infinity)
@@ -114,10 +156,18 @@ struct PaperScanView: View {
                 .padding()
             }
             .sheet(isPresented: $showPhotoPicker) {
-                PhotoPicker { image in
+                PhotoPicker { images in
+                    selectedImage = images.last
+                    Task {
+                        await processSelectedImages(images)
+                    }
+                }
+            }
+            .sheet(isPresented: $showCamera) {
+                CameraPicker { image in
                     selectedImage = image
                     Task {
-                        await processSelectedImage(image)
+                        await processSelectedImages([image])
                     }
                 }
             }
@@ -149,26 +199,40 @@ struct PaperScanView: View {
         .padding(.horizontal)
     }
 
-    private func processSelectedImage(_ image: UIImage) async {
+    private func processSelectedImages(_ images: [UIImage]) async {
         isProcessing = true
-        detectedText = nil
 
         defer {
             isProcessing = false
         }
 
-        let result = await VisionService.shared.processImage(image)
-        detectedText = result?.detectedText
+        var newRecords: [WarehouseRecord] = []
+
+        for image in images {
+            let records = await VisionService.shared.processImageRecords(image)
+            newRecords.append(contentsOf: records)
+        }
+
+        appendDetectedRecords(newRecords)
+        detectedText = detectedRecords.isEmpty ? nil : detectedRecords.map(\.displayText).joined(separator: "\n")
+    }
+
+    private func appendDetectedRecords(_ records: [WarehouseRecord]) {
+        for record in records {
+            if !detectedRecords.contains(where: { $0.verificationKey == record.verificationKey }) {
+                detectedRecords.append(record)
+            }
+        }
     }
 }
 
 private struct PhotoPicker: UIViewControllerRepresentable {
-    let onImagePicked: (UIImage) -> Void
+    let onImagesPicked: ([UIImage]) -> Void
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var configuration = PHPickerConfiguration(photoLibrary: .shared())
         configuration.filter = .images
-        configuration.selectionLimit = 1
+        configuration.selectionLimit = 0
 
         let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = context.coordinator
@@ -178,38 +242,102 @@ private struct PhotoPicker: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onImagePicked: onImagePicked)
+        Coordinator(onImagesPicked: onImagesPicked)
     }
 
     final class Coordinator: NSObject, PHPickerViewControllerDelegate {
-        private let onImagePicked: (UIImage) -> Void
+        private let onImagesPicked: ([UIImage]) -> Void
 
-        init(onImagePicked: @escaping (UIImage) -> Void) {
-            self.onImagePicked = onImagePicked
+        init(onImagesPicked: @escaping ([UIImage]) -> Void) {
+            self.onImagesPicked = onImagesPicked
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             picker.dismiss(animated: true)
 
-            guard let itemProvider = results.first?.itemProvider,
-                  itemProvider.canLoadObject(ofClass: UIImage.self) else {
+            let itemProviders = results
+                .map(\.itemProvider)
+                .filter { $0.canLoadObject(ofClass: UIImage.self) }
+
+            guard !itemProviders.isEmpty else {
                 return
             }
 
-            itemProvider.loadObject(ofClass: UIImage.self) { [onImagePicked] object, error in
-                if let error {
-                    Logger.shared.error("Failed to load selected photo: \(error.localizedDescription)")
-                    return
-                }
+            let group = DispatchGroup()
+            let lock = NSLock()
+            var images: [UIImage] = []
 
-                guard let image = object as? UIImage else {
-                    return
-                }
+            for itemProvider in itemProviders {
+                group.enter()
+                itemProvider.loadObject(ofClass: UIImage.self) { object, error in
+                    defer { group.leave() }
 
-                DispatchQueue.main.async {
-                    onImagePicked(image)
+                    if let error {
+                        Logger.shared.error("Failed to load selected photo: \(error.localizedDescription)")
+                        return
+                    }
+
+                    guard let image = object as? UIImage else {
+                        return
+                    }
+
+                    lock.lock()
+                    images.append(image)
+                    lock.unlock()
                 }
             }
+
+            group.notify(queue: .main) { [onImagesPicked] in
+                guard !images.isEmpty else {
+                    return
+                }
+
+                onImagesPicked(images)
+            }
+        }
+    }
+}
+
+private struct CameraPicker: UIViewControllerRepresentable {
+    static var isAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
+    let onImageCaptured: (UIImage) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.cameraCaptureMode = .photo
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onImageCaptured: onImageCaptured)
+    }
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        private let onImageCaptured: (UIImage) -> Void
+
+        init(onImageCaptured: @escaping (UIImage) -> Void) {
+            self.onImageCaptured = onImageCaptured
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            picker.dismiss(animated: true)
+
+            guard let image = info[.originalImage] as? UIImage else {
+                return
+            }
+
+            onImageCaptured(image)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
         }
     }
 }

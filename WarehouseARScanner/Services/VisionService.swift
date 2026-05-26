@@ -9,6 +9,7 @@ class VisionService {
 
     private let sequenceHandler = VNSequenceRequestHandler()
     var detectionCallback: ((DetectionResult) -> Void)?
+    var liveFeedbackCallback: ((LiveScanFeedback) -> Void)?
     private var frameCounter = 0
 
     func processFrame(_ pixelBuffer: CVPixelBuffer) {
@@ -28,9 +29,23 @@ class VisionService {
     }
 
     func processImage(_ image: UIImage) async -> DetectionResult? {
+        guard let record = await processImageRecords(image).first else {
+            return nil
+        }
+
+        return DetectionResult(
+            detectedText: record.displayText,
+            bounds: .zero,
+            confidence: record.confidence,
+            frameNumber: frameCounter,
+            timestamp: record.timestamp
+        )
+    }
+
+    func processImageRecords(_ image: UIImage) async -> [WarehouseRecord] {
         guard let cgImage = image.cgImage else {
             Logger.shared.error("Failed to get CGImage from UIImage")
-            return nil
+            return []
         }
 
         let request = VNRecognizeTextRequest()
@@ -46,46 +61,16 @@ class VisionService {
             try handler.perform([request])
 
             if let results = request.results as? [VNRecognizedTextObservation] {
-                let detections = results
-                    .flatMap { observation in
-                        observation.topCandidates(5).compactMap { candidate -> (text: String, confidence: Float, bounds: CGRect)? in
-                            guard let labelText = LabelParser.parseLabelText(candidate.string) else {
-                                Logger.shared.debug("Ignoring unparsed OCR text: '\(candidate.string)'")
-                                return nil
-                            }
-
-                            let confidence = Float(candidate.confidence * observation.confidence)
-                            guard confidence >= Constants.ocrConfidenceThreshold else {
-                                return nil
-                            }
-
-                            return (
-                                text: labelText,
-                                confidence: confidence,
-                                bounds: observation.boundingBox
-                            )
-                        }
-                    }
-                    .sorted { $0.confidence > $1.confidence }
-
-                if let topDetection = detections.first {
-                    Logger.shared.debug("Image recognition: '\(topDetection.text)' (\(topDetection.confidence.percentageString))")
-
-                    let result = DetectionResult(
-                        detectedText: topDetection.text,
-                        bounds: topDetection.bounds,
-                        confidence: topDetection.confidence,
-                        frameNumber: frameCounter,
-                        timestamp: Date()
-                    )
-                    return result
-                }
+                let recognizedLines = recognizedTextLines(from: results)
+                let records = LabelParser.parseInventoryRecords(from: recognizedLines.joined(separator: "\n"))
+                Logger.shared.debug("Image records: \(records.map(\.displayText).joined(separator: ", "))")
+                return records
             }
         } catch {
             Logger.shared.error("Image processing error: \(error)")
         }
 
-        return nil
+        return []
     }
 
     private func handleDetection(request: VNRequest, error: Error?) {
@@ -98,32 +83,37 @@ class VisionService {
             return
         }
 
-        for observation in results {
-            let candidates = observation.topCandidates(5)
+        let recognizedLines = recognizedTextLines(from: results)
+        let positionedRecords = positionedRecords(from: results)
+        let records = positionedRecords.isEmpty ?
+            LabelParser.parseInventoryRecords(from: recognizedLines.joined(separator: "\n")) :
+            positionedRecords.map(\.record)
+        let feedback = LiveScanFeedback(
+            recognizedLines: recognizedLines,
+            records: records,
+            focusBounds: combinedBounds(for: positionedRecords.map(\.bounds)),
+            timestamp: Date()
+        )
 
-            for candidate in candidates {
-                guard let labelText = LabelParser.parseLabelText(candidate.string) else {
-                    continue
-                }
+        DispatchQueue.main.async {
+            self.liveFeedbackCallback?(feedback)
+        }
 
-                let confidence = Float(candidate.confidence * observation.confidence)
+        for positionedRecord in positionedRecords where positionedRecord.record.confidence >= Constants.ocrConfidenceThreshold {
+            let record = positionedRecord.record
+            let detection = DetectionResult(
+                detectedText: record.displayText,
+                bounds: positionedRecord.bounds,
+                confidence: record.confidence,
+                frameNumber: frameCounter,
+                timestamp: record.timestamp
+            )
 
-                if confidence >= Constants.ocrConfidenceThreshold {
-                    let detection = DetectionResult(
-                        detectedText: labelText,
-                        bounds: observation.boundingBox,
-                        confidence: confidence,
-                        frameNumber: frameCounter,
-                        timestamp: Date()
-                    )
-
-                    DispatchQueue.main.async {
-                        self.detectionCallback?(detection)
-                    }
-
-                    Logger.shared.debug("Detected text: '\(labelText)' (\(confidence.percentageString))")
-                }
+            DispatchQueue.main.async {
+                self.detectionCallback?(detection)
             }
+
+            Logger.shared.debug("Detected shelf record: '\(record.displayText)' (\(record.confidence.percentageString))")
         }
     }
 
@@ -131,6 +121,33 @@ class VisionService {
         request.recognitionLevel = Constants.visionRecognitionLevel
         request.recognitionLanguages = Constants.visionLanguages
         request.usesLanguageCorrection = false
+    }
+
+    private func recognizedTextLines(from observations: [VNRecognizedTextObservation]) -> [String] {
+        observations.compactMap { observation in
+            observation.topCandidates(1).first?.string
+        }
+    }
+
+    private func positionedRecords(from observations: [VNRecognizedTextObservation]) -> [(record: WarehouseRecord, bounds: CGRect)] {
+        observations.compactMap { observation in
+            guard let text = observation.topCandidates(1).first?.string,
+                  let record = LabelParser.parseWarehouseRecord(text) else {
+                return nil
+            }
+
+            return (record, observation.boundingBox)
+        }
+    }
+
+    private func combinedBounds(for bounds: [CGRect]) -> CGRect? {
+        guard let firstBounds = bounds.first else {
+            return nil
+        }
+
+        return bounds.dropFirst().reduce(firstBounds) { partialResult, bounds in
+            partialResult.union(bounds)
+        }
     }
 
     private var currentCameraOrientation: CGImagePropertyOrientation {

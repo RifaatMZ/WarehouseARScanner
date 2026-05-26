@@ -4,6 +4,23 @@ struct LabelParser {
     static let customFormatEnabledKey = "customLabelFormatEnabled"
     static let customFormatKey = "customLabelFormat"
     static let defaultFormat = "L-NN-NN"
+    private static let shelfLocationPattern = "[A-Z]{2}[0-9OIL|SBZ]{2}[A-Z][0-9OIL|SBZ]"
+    private static let itemNumberPattern = "[0-9OIL|SBZ]{3}\\s*[-–—]?\\s*[0-9OIL|SBZ]{5}"
+
+    static func parseWarehouseRecord(_ text: String, confidence: Float = 0.9) -> WarehouseRecord? {
+        parseInventoryRecords(from: text, confidence: confidence).first
+    }
+
+    static func parseInventoryRecords(from text: String, confidence: Float = 0.9) -> [WarehouseRecord] {
+        let cleanText = normalizeText(text)
+        var records = parseRecordsByLine(from: cleanText, confidence: confidence)
+
+        if records.isEmpty {
+            records = parseRecordsFromCombinedText(cleanText, confidence: confidence)
+        }
+
+        return records.removingDuplicateRecords()
+    }
 
     static func parseLabelText(_ text: String) -> String? {
         if UserDefaults.standard.bool(forKey: customFormatEnabledKey),
@@ -86,6 +103,94 @@ struct LabelParser {
             .replacingOccurrences(of: "Z", with: "2")
     }
 
+    private static func parseRecordsByLine(from text: String, confidence: Float) -> [WarehouseRecord] {
+        text
+            .components(separatedBy: .newlines)
+            .compactMap { line in
+                guard let location = firstLocation(in: line),
+                      let itemNumber = firstItemNumber(in: line) else {
+                    return nil
+                }
+
+                return WarehouseRecord(
+                    location: location,
+                    itemNumber: itemNumber,
+                    confidence: confidence,
+                    timestamp: Date()
+                )
+            }
+    }
+
+    private static func parseRecordsFromCombinedText(_ text: String, confidence: Float) -> [WarehouseRecord] {
+        let locations = matches(for: shelfLocationPattern, in: text).map(normalizeLocation)
+        let itemNumbers = matches(for: itemNumberPattern, in: text).map(normalizeItemNumber)
+        let count = min(locations.count, itemNumbers.count)
+
+        guard count > 0 else {
+            return []
+        }
+
+        return (0..<count).map { index in
+            WarehouseRecord(
+                location: locations[index],
+                itemNumber: itemNumbers[index],
+                confidence: confidence,
+                timestamp: Date()
+            )
+        }
+    }
+
+    private static func firstLocation(in text: String) -> String? {
+        matches(for: shelfLocationPattern, in: text).first.map(normalizeLocation)
+    }
+
+    private static func firstItemNumber(in text: String) -> String? {
+        matches(for: itemNumberPattern, in: text).first.map(normalizeItemNumber)
+    }
+
+    private static func matches(for pattern: String, in text: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return []
+        }
+
+        let nsRange = NSRange(location: 0, length: text.utf16.count)
+        return regex.matches(in: text, options: [], range: nsRange).compactMap { match in
+            guard let range = Range(match.range, in: text) else {
+                return nil
+            }
+
+            return String(text[range])
+        }
+    }
+
+    private static func normalizeLocation(_ text: String) -> String {
+        let compact = text.filter { $0.isLetter || $0.isNumber || $0 == "|" }
+        let characters = Array(compact)
+
+        guard characters.count >= 6 else {
+            return compact
+        }
+
+        let prefix = String(characters[0...1])
+        let bay = normalizeDigits(String(characters[2...3]))
+        let shelf = String(characters[4])
+        let level = normalizeDigits(String(characters[5]))
+
+        return "\(prefix)\(bay)\(shelf)\(level)"
+    }
+
+    private static func normalizeItemNumber(_ text: String) -> String {
+        let digits = normalizeDigits(text).filter { $0.isNumber }
+
+        guard digits.count >= 8 else {
+            return digits
+        }
+
+        let prefix = digits.prefix(3)
+        let suffix = digits.dropFirst(3).prefix(5)
+        return "\(prefix)-\(suffix)"
+    }
+
     private static func parseCustomLabel(_ text: String, format: String) -> String? {
         let cleanText = normalizeText(text)
         let cleanFormat = format.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -163,5 +268,15 @@ struct LabelParser {
         }
 
         return normalized
+    }
+}
+
+private extension Array where Element == WarehouseRecord {
+    func removingDuplicateRecords() -> [WarehouseRecord] {
+        var seen = Set<String>()
+        return filter { record in
+            let key = "\(record.location)|\(record.itemNumber)"
+            return seen.insert(key).inserted
+        }
     }
 }
