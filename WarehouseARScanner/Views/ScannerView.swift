@@ -38,7 +38,7 @@ struct ScannerView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "square.stack.fill")
                                 .font(.caption)
-                            Text("\(scanViewModel.detectedLabels.count)")
+                            Text("\(scanViewModel.shelfRecords.count)")
                         }
                         .font(.caption)
                         .foregroundColor(.white)

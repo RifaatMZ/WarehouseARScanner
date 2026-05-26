@@ -76,11 +76,12 @@ class ScanViewModel: NSObject, ObservableObject {
                 self.currentShelfRecord = record
 
                 // Add to list if not already present
-                if !self.detectedLabels.contains(where: { $0.text == formatted }) {
+                if !self.detectedLabels.contains(where: { $0.text == formatted }) &&
+                    !self.shelfRecords.contains(where: { $0.location == record.location }) {
                     self.detectedLabels.append(label)
                 }
 
-                if !self.shelfRecords.contains(where: { $0.location == record.location && $0.itemNumber == record.itemNumber }) {
+                if !self.shelfRecords.contains(where: { $0.location == record.location }) {
                     self.shelfRecords.append(record)
                 }
 

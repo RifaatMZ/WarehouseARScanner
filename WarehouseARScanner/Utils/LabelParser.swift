@@ -3,8 +3,7 @@ import Foundation
 struct LabelParser {
     static let customFormatEnabledKey = "customLabelFormatEnabled"
     static let customFormatKey = "customLabelFormat"
-    static let defaultFormat = "L-NN-NN"
-    private static let shelfLocationPattern = "[A-Z]{2}[0-9OIL|SBZ]{2}[A-Z][0-9OIL|SBZ]"
+    static let defaultFormat = "LLNNLN"
     private static let itemNumberPattern = "[0-9OIL|SBZ]{3}\\s*[-–—]?\\s*[0-9OIL|SBZ]{5}"
 
     static func parseWarehouseRecord(_ text: String, confidence: Float = 0.9) -> WarehouseRecord? {
@@ -122,7 +121,7 @@ struct LabelParser {
     }
 
     private static func parseRecordsFromCombinedText(_ text: String, confidence: Float) -> [WarehouseRecord] {
-        let locations = matches(for: shelfLocationPattern, in: text).map(normalizeLocation)
+        let locations = locationMatches(in: text)
         let itemNumbers = matches(for: itemNumberPattern, in: text).map(normalizeItemNumber)
         let count = min(locations.count, itemNumbers.count)
 
@@ -141,7 +140,7 @@ struct LabelParser {
     }
 
     private static func firstLocation(in text: String) -> String? {
-        matches(for: shelfLocationPattern, in: text).first.map(normalizeLocation)
+        locationMatches(in: text).first
     }
 
     private static func firstItemNumber(in text: String) -> String? {
@@ -163,20 +162,37 @@ struct LabelParser {
         }
     }
 
-    private static func normalizeLocation(_ text: String) -> String {
-        let compact = text.filter { $0.isLetter || $0.isNumber || $0 == "|" }
-        let characters = Array(compact)
+    private static func locationMatches(in text: String) -> [String] {
+        let format = activeLocationFormat
+        let pattern = customRegexPattern(for: format)
 
-        guard characters.count >= 6 else {
-            return compact
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            Logger.shared.warning("Invalid shelf location format: '\(format)'")
+            return []
         }
 
-        let prefix = String(characters[0...1])
-        let bay = normalizeDigits(String(characters[2...3]))
-        let shelf = String(characters[4])
-        let level = normalizeDigits(String(characters[5]))
+        let nsRange = NSRange(location: 0, length: text.utf16.count)
+        return regex.matches(in: text, options: [], range: nsRange).compactMap { match in
+            guard let range = Range(match.range(at: 1), in: text) else {
+                return nil
+            }
 
-        return "\(prefix)\(bay)\(shelf)\(level)"
+            return normalizeCustomMatch(String(text[range]), format: format)
+        }
+    }
+
+    private static var activeLocationFormat: String {
+        let configuredFormat = UserDefaults.standard.string(forKey: customFormatKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+
+        guard UserDefaults.standard.bool(forKey: customFormatEnabledKey),
+              let configuredFormat,
+              !configuredFormat.isEmpty else {
+            return defaultFormat
+        }
+
+        return configuredFormat
     }
 
     private static func normalizeItemNumber(_ text: String) -> String {

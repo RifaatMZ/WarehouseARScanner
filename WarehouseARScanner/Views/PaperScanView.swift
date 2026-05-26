@@ -14,123 +14,90 @@ struct PaperScanView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                Text("Paper Label Scanner")
-                    .font(.headline)
-                    .padding()
-
-                labelFormatEditor
-
-                if let image = selectedImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 250)
-                        .cornerRadius(10)
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Paper Label Scanner")
+                        .font(.headline)
                         .padding()
-                } else {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(style: StrokeStyle(lineWidth: 2, dash: [5]))
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(height: 250)
-                        .overlay(
-                            VStack(spacing: 8) {
-                                Image(systemName: "photo.on.rectangle")
-                                    .font(.title)
-                                    .foregroundColor(.gray)
-                                Text("Select or take a photo")
-                                    .foregroundColor(.gray)
-                            }
-                        )
-                        .padding()
-                }
 
-                if let detected = detectedText {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Detected Text")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                    labelFormatEditor
 
-                        Text(detected)
-                            .font(.title3)
-                            .fontWeight(.bold)
+                    if let image = selectedImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 250)
+                            .cornerRadius(10)
                             .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(8)
+                    } else {
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(style: StrokeStyle(lineWidth: 2, dash: [5]))
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 250)
+                            .overlay(
+                                VStack(spacing: 8) {
+                                    Image(systemName: "photo.on.rectangle")
+                                        .font(.title)
+                                        .foregroundColor(.gray)
+                                    Text("Select or take a photo")
+                                        .foregroundColor(.gray)
+                                }
+                            )
+                            .padding()
                     }
-                    .padding()
-                }
 
-                if !detectedRecords.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Detected Paper Rows")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                    if let detected = detectedText {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Detected Text")
+                                .font(.caption)
+                                .foregroundColor(.gray)
 
-                        ScrollView {
-                            VStack(spacing: 6) {
-                                ForEach(detectedRecords) { record in
-                                    HStack {
-                                        Text(record.itemNumber)
-                                            .font(.subheadline)
-                                            .monospacedDigit()
+                            Text(detected)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                        }
+                        .padding()
+                    }
 
-                                        Spacer()
+                    if !detectedRecords.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Detected Paper Rows")
+                                .font(.caption)
+                                .foregroundColor(.gray)
 
-                                        Text(record.location)
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
-                                            .monospacedDigit()
+                            ScrollView {
+                                VStack(spacing: 6) {
+                                    ForEach(detectedRecords) { record in
+                                        HStack {
+                                            Text(record.itemNumber)
+                                                .font(.subheadline)
+                                                .monospacedDigit()
+
+                                            Spacer()
+
+                                            Text(record.location)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                                .monospacedDigit()
+                                        }
+                                        .padding(.vertical, 4)
                                     }
-                                    .padding(.vertical, 4)
                                 }
                             }
+                            .frame(maxHeight: 180)
                         }
-                        .frame(maxHeight: 180)
-                    }
-                    .padding()
-                }
-
-                Spacer()
-
-                VStack(spacing: 12) {
-                    Button(action: { showCamera = true }) {
-                        HStack {
-                            Image(systemName: "camera.fill")
-                            Text("Scan Paper with Camera")
-                        }
-                        .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                    }
-                    .disabled(!CameraPicker.isAvailable)
-
-                    Button(action: { showPhotoPicker = true }) {
-                        HStack {
-                            Image(systemName: "photo.fill")
-                            Text(detectedRecords.isEmpty ? "Select from Photos" : "Add from Photos")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
                     }
 
-                    if isProcessing {
-                        ProgressView("Processing...")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                    } else if !detectedRecords.isEmpty {
-                        Button(action: {
-                            comparisonViewModel.appendPaperRecords(detectedRecords)
-                        }) {
+                    VStack(spacing: 12) {
+                        Button(action: { showCamera = true }) {
                             HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                Text("Use Paper Rows")
+                                Image(systemName: "camera.fill")
+                                Text("Scan Paper with Camera")
                             }
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -138,22 +105,55 @@ struct PaperScanView: View {
                             .foregroundColor(.white)
                             .cornerRadius(10)
                         }
-                    }
+                        .disabled(!CameraPicker.isAvailable)
 
-                    Button(action: {
-                        selectedImage = nil
-                        detectedText = nil
-                        detectedRecords = []
-                    }) {
-                        Text("Clear")
+                        Button(action: { showPhotoPicker = true }) {
+                            HStack {
+                                Image(systemName: "photo.fill")
+                                Text(detectedRecords.isEmpty ? "Select from Photos" : "Add from Photos")
+                            }
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.gray.opacity(0.3))
-                            .foregroundColor(.primary)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
                             .cornerRadius(10)
+                        }
+
+                        if isProcessing {
+                            ProgressView("Processing...")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                        } else if !detectedRecords.isEmpty {
+                            Button(action: {
+                                comparisonViewModel.appendPaperRecords(detectedRecords)
+                            }) {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                    Text("Use Paper Rows")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.green)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                            }
+                        }
+
+                        Button(action: {
+                            selectedImage = nil
+                            detectedText = nil
+                            detectedRecords = []
+                        }) {
+                            Text("Clear")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.gray.opacity(0.3))
+                                .foregroundColor(.primary)
+                                .cornerRadius(10)
+                        }
                     }
+                    .padding()
                 }
-                .padding()
             }
             .sheet(isPresented: $showPhotoPicker) {
                 PhotoPicker { images in
@@ -191,7 +191,7 @@ struct PaperScanView: View {
                     .font(.caption)
                 }
 
-                Text("L = letter, N/# = digit, A = letter or digit")
+                Text("Example AA01A1 = LLNNLN. L = letter, N/# = digit, A = letter or digit")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -214,6 +214,7 @@ struct PaperScanView: View {
         }
 
         appendDetectedRecords(newRecords)
+        comparisonViewModel.appendPaperRecords(newRecords)
         detectedText = detectedRecords.isEmpty ? nil : detectedRecords.map(\.displayText).joined(separator: "\n")
     }
 

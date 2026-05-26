@@ -99,7 +99,11 @@ class VisionService {
             self.liveFeedbackCallback?(feedback)
         }
 
-        for positionedRecord in positionedRecords where positionedRecord.record.confidence >= Constants.ocrConfidenceThreshold {
+        let detectionRecords: [(record: WarehouseRecord, bounds: CGRect)] = positionedRecords.isEmpty ?
+            records.map { ($0, .zero) } :
+            positionedRecords
+
+        for positionedRecord in detectionRecords where positionedRecord.record.confidence >= Constants.ocrConfidenceThreshold {
             let record = positionedRecord.record
             let detection = DetectionResult(
                 detectedText: record.displayText,
