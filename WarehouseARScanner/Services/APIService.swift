@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 class APIService {
     static let shared = APIService()
@@ -18,12 +19,9 @@ class APIService {
     }
 
     func checkInventory(labels: [InventoryCheckRequest.DetectedLabel]) async -> Result<InventoryCheckResponse, Error> {
+        let deviceId = await deviceIdentifier()
+
         if Constants.useMockAPI {
-            let request = InventoryCheckRequest(
-                detectedLabels: labels,
-                timestamp: Date(),
-                deviceId: UIDevice.current.identifierForVendor?.uuidString
-            )
             let response = MockInventoryData.generateResponse(for: labels)
             Logger.shared.info("Mock API: Inventory check returned \(response.matchedItems.count) items")
             return .success(response)
@@ -40,7 +38,7 @@ class APIService {
         let request = InventoryCheckRequest(
             detectedLabels: labels,
             timestamp: Date(),
-            deviceId: UIDevice.current.identifierForVendor?.uuidString
+            deviceId: deviceId
         )
 
         do {
@@ -88,6 +86,9 @@ class APIService {
             return .failure(error)
         }
     }
-}
 
-import UIKit
+    @MainActor
+    private func deviceIdentifier() -> String? {
+        UIDevice.current.identifierForVendor?.uuidString
+    }
+}

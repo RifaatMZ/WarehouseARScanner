@@ -263,6 +263,20 @@ struct ResultsView: View {
             }
             .navigationTitle("Results")
             .navigationBarTitleDisplayMode(.inline)
+            .overlay(alignment: .top) {
+                if !scanViewModel.shelfRecords.isEmpty {
+                    let range = WarehouseLabelRange.load()
+                    if range.isEnabled {
+                        Text("Range active: \(range.summary)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(6)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(6)
+                            .padding(.top, 8)
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {

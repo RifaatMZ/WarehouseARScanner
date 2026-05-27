@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 
+@MainActor
 class InventoryViewModel: ObservableObject {
     @Published var inventoryItems: [InventoryItem] = []
     @Published var matchedItems: [MatchedInventoryItem] = []
@@ -13,10 +14,8 @@ class InventoryViewModel: ObservableObject {
     private let apiService = APIService.shared
 
     func checkInventory(for detections: [StorageLabel]) async {
-        DispatchQueue.main.async {
-            self.isLoading = true
-            self.errorMessage = nil
-        }
+        isLoading = true
+        errorMessage = nil
 
         let requests = detections.map { detection in
             InventoryCheckRequest.DetectedLabel(
@@ -28,20 +27,18 @@ class InventoryViewModel: ObservableObject {
 
         let result = await apiService.checkInventory(labels: requests)
 
-        DispatchQueue.main.async {
-            self.isLoading = false
+        isLoading = false
 
-            switch result {
-            case .success(let response):
-                self.matchedItems = response.matchedItems
-                self.overallConfidence = response.overallConfidence
-                self.lastCheckTime = response.timestamp
-                Logger.shared.info("Inventory check: \(response.matchedItems.count) items matched")
+        switch result {
+        case .success(let response):
+            matchedItems = response.matchedItems
+            overallConfidence = response.overallConfidence
+            lastCheckTime = response.timestamp
+            Logger.shared.info("Inventory check: \(response.matchedItems.count) items matched")
 
-            case .failure(let error):
-                self.errorMessage = error.localizedDescription
-                Logger.shared.error("Inventory check failed: \(error.localizedDescription)")
-            }
+        case .failure(let error):
+            errorMessage = error.localizedDescription
+            Logger.shared.error("Inventory check failed: \(error.localizedDescription)")
         }
     }
 

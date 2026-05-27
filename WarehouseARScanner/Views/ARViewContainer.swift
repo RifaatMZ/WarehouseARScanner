@@ -33,7 +33,11 @@ class ARViewController: UIViewController, ARSCNViewDelegate {
 
         arService.initialize(with: sceneView)
         arService.frameCallback = { [weak self] pixelBuffer in
-            VisionService.shared.processFrame(pixelBuffer)
+            // Only feed frames to Vision while actively scanning.
+            // This stops continuous OCR after we auto-pause on a valid label.
+            if self?.scanViewModel?.isScanning == true {
+                VisionService.shared.processFrame(pixelBuffer)
+            }
         }
 
         // Add tap gesture to place markers
@@ -41,10 +45,13 @@ class ARViewController: UIViewController, ARSCNViewDelegate {
         sceneView.addGestureRecognizer(tapGesture)
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        scanViewModel?.startScanning()
-        arService.start()
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Do NOT auto-start the AR session.
+        // The app should start in a paused state. The user must explicitly
+        // tap "Start Scanning" / "Resume Scanning" to begin.
+        // This significantly reduces heat and battery usage when the user
+        // is not actively scanning.
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -81,7 +88,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate {
         return textNode
     }
 
-    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: AnchorProtocol?) {
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         Logger.shared.debug("AR anchor added")
     }
 }

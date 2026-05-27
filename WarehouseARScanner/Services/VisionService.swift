@@ -60,7 +60,7 @@ class VisionService {
         do {
             try handler.perform([request])
 
-            if let results = request.results as? [VNRecognizedTextObservation] {
+            if let results = request.results {
                 let recognizedLines = recognizedTextLines(from: results)
                 let records = LabelParser.parseInventoryRecords(from: recognizedLines.joined(separator: "\n"))
                 Logger.shared.debug("Image records: \(records.map(\.displayText).joined(separator: ", "))")

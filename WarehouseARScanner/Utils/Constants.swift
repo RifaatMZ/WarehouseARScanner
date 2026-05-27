@@ -7,6 +7,20 @@ struct Constants {
     static let apiBaseURL = "https://api.warehouse.local"
     static let inventoryCheckEndpoint = "/inventory/check"
 
+    // MARK: - One-shot Capture Behavior (persisted)
+    // Default is now false: continuous scanning with deduplication is preferred.
+    static var autoPauseAfterValidCapture: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: "autoPauseAfterValidCapture") == nil {
+                return false
+            }
+            return UserDefaults.standard.bool(forKey: "autoPauseAfterValidCapture")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "autoPauseAfterValidCapture")
+        }
+    }
+
     // MARK: - Vision Settings
     static let visionRecognitionLevel: VNRequestTextRecognitionLevel = .accurate
     static let visionLanguages = ["en"]

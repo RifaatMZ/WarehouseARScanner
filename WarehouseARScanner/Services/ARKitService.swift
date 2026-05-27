@@ -1,7 +1,6 @@
 import Foundation
 import ARKit
 import SceneKit
-import ARKit
 
 class ARKitService: NSObject, ARSessionDelegate {
     static let shared = ARKitService()
@@ -40,11 +39,12 @@ class ARKitService: NSObject, ARSessionDelegate {
 
         let configuration = ARWorldTrackingConfiguration()
         configuration.planeDetection = [.horizontal, .vertical]
-        configuration.environmentTexturing = .automatic
+        configuration.environmentTexturing = .none   // Major source of heat - disabled
 
-        if ARWorldTrackingConfiguration.supportsFrameSemantics(.personSegmentationWithDepth) {
-            configuration.frameSemantics.insert(.personSegmentationWithDepth)
-        }
+        // Person segmentation is heavy and not needed for warehouse label scanning
+        // if ARWorldTrackingConfiguration.supportsFrameSemantics(.personSegmentationWithDepth) {
+        //     configuration.frameSemantics.insert(.personSegmentationWithDepth)
+        // }
 
         arSession.run(configuration)
         Logger.shared.info("AR Session started")
@@ -115,17 +115,14 @@ class ARKitService: NSObject, ARSessionDelegate {
     }
 }
 
-protocol AnchorProtocol: ARAnchor {}
 extension ARKitService: ARSCNViewDelegate {
-    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: AnchorProtocol?) {
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         // Handle plane anchors
         guard let anchor = anchor as? ARPlaneAnchor else { return }
         Logger.shared.debug("Plane detected: \(anchor.extent)")
     }
 
-    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: AnchorProtocol?) {
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
         // Update plane detection
     }
 }
-
-import ARKit

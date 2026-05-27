@@ -202,6 +202,7 @@
 		5A3333333333333333333333 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_DIALECT = "gnu++20";
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -224,6 +225,7 @@
 		5A4444444444444444444444 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_DIALECT = "gnu++20";
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -246,6 +248,7 @@
 		5A5555555555555555555555 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.7;
@@ -255,6 +258,7 @@
 		5A6666666666666666666666 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.7;

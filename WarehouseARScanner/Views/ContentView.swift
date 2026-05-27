@@ -33,6 +33,16 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: scanViewModel.shouldNavigateToResults) { shouldNavigate in
+            if shouldNavigate {
+                // Auto-advance to Results tab after a successful one-shot capture
+                selectedTab = 2
+                // Reset the flag so it doesn't keep firing
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    scanViewModel.shouldNavigateToResults = false
+                }
+            }
+        }
     }
 }
 
