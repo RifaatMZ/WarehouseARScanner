@@ -219,15 +219,47 @@ struct LabelParser {
     }
 
     private static func normalizeItemNumber(_ text: String) -> String {
-        let digits = normalizeDigits(text).filter { $0.isNumber }
+        // Be much more permissive — item numbers can legitimately contain letters
+        // (e.g. "420-26159-L", "A123-B", etc.).
+        let cleaned = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "–", with: "-")
+            .replacingOccurrences(of: "—", with: "-")
 
-        guard digits.count >= 8 else {
-            return digits
+        // Light OCR fixes only (no aggressive letter removal)
+        let lightlyFixed = cleaned
+            .replacingOccurrences(of: "O", with: "0")
+            .replacingOccurrences(of: "I", with: "1")
+            .replacingOccurrences(of: "l", with: "1")
+
+        let digitsOnly = lightlyFixed.filter { $0.isNumber }
+
+        // Only reformat if it looks like a classic long warehouse item code
+        if digitsOnly.count >= 8 && digitsOnly.count <= 12 {
+            let prefix = digitsOnly.prefix(3)
+            let suffix = digitsOnly.dropFirst(3).prefix(5)
+            let remainder = digitsOnly.dropFirst(8)
+
+            var result = "\(prefix)-\(suffix)"
+            if !remainder.isEmpty {
+                result += "-" + remainder
+            }
+
+            // Extract any trailing non-numeric suffix (letters, etc.) that came after the digits
+            // This is the safe way — find where the main digit sequence ends in the original string.
+            if let digitRange = lightlyFixed.range(of: digitsOnly) {
+                let afterDigits = lightlyFixed[digitRange.upperBound...]
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "-_ ."))
+                if !afterDigits.isEmpty {
+                    result += "-" + afterDigits.uppercased()
+                }
+            }
+
+            return result
         }
 
-        let prefix = digits.prefix(3)
-        let suffix = digits.dropFirst(3).prefix(5)
-        return "\(prefix)-\(suffix)"
+        // For shorter or non-standard item numbers, just return the lightly cleaned version
+        return lightlyFixed
     }
 
     private static func parseCustomLabel(_ text: String, format: String) -> String? {

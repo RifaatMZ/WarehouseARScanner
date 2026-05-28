@@ -103,6 +103,21 @@ struct ScannerView: View {
                     .background(Color.black.opacity(0.75))
                     .cornerRadius(8)
                     .padding(.horizontal)
+                } else {
+                    // Prompt to use the new dedicated Warehouses tab
+                    VStack(spacing: 2) {
+                        Text("No warehouse map active")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                        Text("Switch to the Warehouses tab to select or create one before scanning.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.black.opacity(0.6))
+                    .cornerRadius(8)
+                    .padding(.horizontal)
                 }
 
                 liveFeedbackPanel

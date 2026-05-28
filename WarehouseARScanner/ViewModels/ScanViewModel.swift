@@ -26,6 +26,22 @@ class ScanViewModel: NSObject, ObservableObject {
     /// The last location (within the active warehouse) that was successfully matched during this session.
     @Published var lastMatchedWarehouseLocation: VirtualLocation?
 
+    // MARK: - Pending Warehouse Changes (AR proposes, user approves)
+    struct WarehouseChange: Identifiable {
+        let id = UUID()
+        let locationLabel: String
+        let action: Action
+        let itemNumber: String?
+
+        enum Action {
+            case add
+            case remove
+            case replace(old: String?)
+        }
+    }
+
+    @Published var pendingWarehouseChanges: [WarehouseChange] = []
+
     /// If an active warehouse is loaded, this returns the next logical position the user should scan
     /// (within the current section context if possible, otherwise the next unscanned in global order).
     var nextExpectedWarehouseLocation: VirtualLocation? {
@@ -41,8 +57,8 @@ class ScanViewModel: NSObject, ObservableObject {
             return all[idx + 1]
         }
 
-        // Otherwise return the first position that has not received a live AR scan yet.
-        if let firstUnscanned = all.first(where: { $0.currentItemNumber == nil }) {
+        // Otherwise return the first position that has not received any live AR scan yet.
+        if let firstUnscanned = all.first(where: { $0.allCurrentItems.isEmpty }) {
             return firstUnscanned
         }
 
@@ -208,33 +224,20 @@ class ScanViewModel: NSObject, ObservableObject {
                                 self.shelfRecords.append(record)
                             }
 
-                            // === Virtual Warehouse live update + anticipation support ===
-                            if var warehouse = self.activeWarehouse {
-                                let matched = warehouse.recordARScan(
-                                    at: record.location,
-                                    itemNumber: record.itemNumber,
-                                    timestamp: Date()
+                            // === Virtual Warehouse: Propose changes instead of auto-updating ===
+                            if let warehouse = self.activeWarehouse {
+                                // Collect proposed change for user approval later
+                                let change = WarehouseChange(
+                                    locationLabel: record.location,
+                                    action: .add,
+                                    itemNumber: record.itemNumber
                                 )
-                                if matched {
-                                    self.activeWarehouse = warehouse
-                                    let previousLast = self.lastMatchedWarehouseLocation
-                                    self.lastMatchedWarehouseLocation = warehouse.findLocation(matching: record.location)
-
-                                    // Anticipation / miss warning
-                                    let missed = self.missedPositions(between: previousLast, and: record.location, in: warehouse)
-                                    if !missed.isEmpty {
-                                        let missedLabels = missed.map { $0.formattedLocation }.joined(separator: ", ")
-                                        self.errorMessage = "Missed positions: \(missedLabels)"
-                                        Logger.shared.warning("User skipped positions in active warehouse: \(missedLabels)")
-                                    } else {
-                                        // Clear previous skip warning once user is back on track
-                                        if self.errorMessage?.hasPrefix("Missed positions") == true {
-                                            self.errorMessage = nil
-                                        }
-                                    }
-
-                                    Logger.shared.info("Updated active warehouse position for \(record.location)")
+                                if !self.pendingWarehouseChanges.contains(where: { $0.locationLabel == record.location && $0.itemNumber == record.itemNumber }) {
+                                    self.pendingWarehouseChanges.append(change)
                                 }
+
+                                self.lastMatchedWarehouseLocation = warehouse.findLocation(matching: record.location)
+                                Logger.shared.info("Proposed warehouse change for \(record.location)")
                             }
 
                             Logger.shared.info("New in-range label captured: \(formatted)")

@@ -100,6 +100,21 @@ struct PaperScanView: View {
                         .padding()
                     }
 
+                    // Guidance when user came from Warehouses tab to create a warehouse
+                    if !detectedRecords.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Creating a Warehouse from this paper?")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.blue)
+
+                            Text("Use the purple buttons below to create a new warehouse. Go back to the Warehouses tab afterward to manage it.")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal)
+                    }
+
                     VStack(spacing: 12) {
                         Button(action: { showCamera = true }) {
                             HStack {
@@ -184,6 +199,21 @@ struct PaperScanView: View {
                                     .background(Color.indigo)
                                     .foregroundColor(.white)
                                     .cornerRadius(10)
+                                }
+
+                                // Helpful button to return to the new Warehouses tab after creation
+                                Button {
+                                    // Switch back to Warehouses tab (tag 0)
+                                    // Note: This only works if PaperScanView is presented in a context that has access to selectedTab.
+                                    // For the main tab flow it will be handled by the parent.
+                                    NotificationCenter.default.post(name: Notification.Name("GoToWarehousesTab"), object: nil)
+                                } label: {
+                                    Text("Back to Warehouses Tab")
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(Color.gray.opacity(0.3))
+                                        .foregroundColor(.primary)
+                                        .cornerRadius(10)
                                 }
                             }
                         }
@@ -497,14 +527,19 @@ struct VirtualWarehouseEditorView: View {
                                         Text(location.formattedLocation)
                                             .font(.headline).monospacedDigit()
 
-                                        // Reference from paper (if any)
-                                        if let ref = location.referenceItemNumber {
-                                            Text("Paper ref: \(ref)").font(.caption).foregroundColor(.secondary)
+                                        // Reference from paper (supports multiple)
+                                        if !location.referenceItems.isEmpty {
+                                            Text("Paper: \(location.referenceItems.joined(separator: ", "))")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        } else if let ref = location.referenceItemNumber {
+                                            Text("Paper: \(ref)").font(.caption).foregroundColor(.secondary)
                                         }
 
-                                        // Live data from AR scanner (the "different section" / current floor state)
-                                        if let current = location.currentItemNumber {
-                                            Text("Now: \(current)")
+                                        // Live AR data (supports multiple items per location)
+                                        let live = location.allCurrentItems
+                                        if !live.isEmpty {
+                                            Text("Now: \(live.joined(separator: ", "))")
                                                 .font(.caption)
                                                 .fontWeight(.semibold)
                                                 .foregroundColor(.green)
@@ -520,7 +555,7 @@ struct VirtualWarehouseEditorView: View {
                                         editSection = location.section
                                         editRow = location.row
                                         editColumn = location.column
-                                        editItemNumber = location.referenceItemNumber ?? ""
+                                        editItemNumber = location.referenceItems.first ?? location.referenceItemNumber ?? ""
                                     }
                                     .buttonStyle(.bordered)
 
@@ -566,6 +601,20 @@ struct VirtualWarehouseEditorView: View {
                     showAddLocation = true
                 } label: {
                     Image(systemName: "plus")
+                }
+            }
+
+            // Quick action to clear all live AR data from this warehouse
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(role: .destructive) {
+                        warehouse.prepareAsEmptyTemplate(clearReferenceItems: false)
+                        VirtualWarehouse.save(warehouse)
+                    } label: {
+                        Label("Empty All Live Positions", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
@@ -691,7 +740,7 @@ private struct VirtualWarehouseStatusView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var scannedCount: Int {
-        warehouse.flattenedLocationsInOrder.filter { $0.currentItemNumber != nil }.count
+        warehouse.flattenedLocationsInOrder.filter { !$0.allCurrentItems.isEmpty }.count
     }
 
     private var totalCount: Int {
@@ -725,15 +774,19 @@ private struct VirtualWarehouseStatusView: View {
                                             .font(.headline)
                                             .monospacedDigit()
 
-                                        if let current = location.currentItemNumber {
-                                            HStack {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundColor(.green)
-                                                Text("Scanned: \(current)")
-                                                    .fontWeight(.semibold)
+                                        // Current items (supports multiple)
+                                        let liveItems = location.allCurrentItems
+                                        if !liveItems.isEmpty {
+                                            ForEach(liveItems, id: \.self) { item in
+                                                HStack {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundColor(.green)
+                                                    Text("Scanned: \(item)")
+                                                        .fontWeight(.semibold)
+                                                }
                                             }
                                             if let scannedAt = location.lastARScan {
-                                                Text("Last seen: \(scannedAt.formatted(date: .omitted, time: .shortened))")
+                                                Text("Last scan: \(scannedAt.formatted(date: .omitted, time: .shortened))")
                                                     .font(.caption2)
                                                     .foregroundColor(.secondary)
                                             }
@@ -747,8 +800,14 @@ private struct VirtualWarehouseStatusView: View {
                                             }
                                         }
 
-                                        if let ref = location.referenceItemNumber {
-                                            Text("Paper reference: \(ref)")
+                                        // Reference items from paper (now supports multiple)
+                                        if !location.referenceItems.isEmpty {
+                                            Text("Paper refs: \(location.referenceItems.joined(separator: ", "))")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        } else if let ref = location.referenceItemNumber {
+                                            // legacy fallback
+                                            Text("Paper ref: \(ref)")
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                         }
@@ -767,9 +826,11 @@ private struct VirtualWarehouseStatusView: View {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Edit Structure") {
-                        dismiss()
+                    Button {
                         onEditRequested()
+                        dismiss()
+                    } label: {
+                        Label("Add / Edit Positions", systemImage: "plus")
                     }
                 }
             }
@@ -853,30 +914,58 @@ struct SavedVirtualWarehousesView: View {
     @State private var warehouses: [VirtualWarehouse] = []
     @Environment(\.dismiss) private var dismiss
 
+    // Rename support
+    @State private var warehouseBeingRenamed: VirtualWarehouse?
+    @State private var newWarehouseName: String = ""
+
     var body: some View {
         NavigationView {
-            List(warehouses) { warehouse in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(warehouse.name).font(.headline)
-                    Text("\(warehouse.totalLocations) locations  •  \(warehouse.lastUpdated.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("Tap to view current scanned / not scanned state")
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if isMergeMode {
-                        var updated = warehouse
-                        updated.buildFromRecords(recordsToMerge, replaceExisting: false, labelFormat: labelFormat)
-                        VirtualWarehouse.save(updated)
-                        onMergeCompleted?(updated)
-                        dismiss()
-                    } else {
-                        // Normal "Manage" mode → open this warehouse in the editor so user can continue editing it later
-                        onSelectWarehouse?(warehouse)
-                        dismiss()
+            List {
+                ForEach(warehouses) { warehouse in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(warehouse.name).font(.headline)
+                        Text("\(warehouse.totalLocations) locations  •  \(warehouse.lastUpdated.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Tap to view current scanned / not scanned state")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if isMergeMode {
+                            var updated = warehouse
+                            updated.buildFromRecords(recordsToMerge, replaceExisting: false, labelFormat: labelFormat)
+                            VirtualWarehouse.save(updated)
+                            onMergeCompleted?(updated)
+                            dismiss()
+                        } else {
+                            onSelectWarehouse?(warehouse)
+                            dismiss()
+                        }
+                    }
+                    .contextMenu {
+                        Button {
+                            renameWarehouse(warehouse)
+                        } label: {
+                            Label("Rename", systemImage: "pencil")
+                        }
+                        if !isMergeMode {
+                            Button(role: .destructive) {
+                                deleteWarehouse(warehouse)
+                            } label: {
+                                Label("Delete Warehouse", systemImage: "trash")
+                            }
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        if !isMergeMode {
+                            Button(role: .destructive) {
+                                deleteWarehouse(warehouse)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
@@ -899,6 +988,427 @@ struct SavedVirtualWarehousesView: View {
             }
             .refreshable {
                 warehouses = VirtualWarehouse.loadAll()
+            }
+            .sheet(item: $warehouseBeingRenamed) { _ in
+                NavigationView {
+                    Form {
+                        Section("Rename Warehouse") {
+                            TextField("Warehouse name", text: $newWarehouseName)
+                                .textInputAutocapitalization(.words)
+                        }
+                    }
+                    .navigationTitle("Rename")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { warehouseBeingRenamed = nil }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Save") {
+                                performRename()
+                            }
+                            .disabled(newWarehouseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func deleteWarehouse(_ warehouse: VirtualWarehouse) {
+        VirtualWarehouse.delete(id: warehouse.id)
+        warehouses.removeAll { $0.id == warehouse.id }
+    }
+
+    private func renameWarehouse(_ warehouse: VirtualWarehouse) {
+        warehouseBeingRenamed = warehouse
+        newWarehouseName = warehouse.name
+    }
+
+    private func performRename() {
+        guard var wh = warehouseBeingRenamed else { return }
+        let trimmed = newWarehouseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            wh.name = trimmed
+            VirtualWarehouse.save(wh)
+            warehouses = VirtualWarehouse.loadAll()
+        }
+        warehouseBeingRenamed = nil
+    }
+}
+
+// MARK: - New Dedicated Warehouses Tab
+
+struct WarehousesTabView: View {
+    @ObservedObject var scanViewModel: ScanViewModel
+    @Binding var selectedTab: Int
+
+    @State private var savedWarehouses: [VirtualWarehouse] = []
+    @State private var showCreateNew = false
+    @State private var newWarehouseName = ""
+    @State private var editingWarehouse: VirtualWarehouse?
+    @State private var activeWarehouseID: UUID?
+
+    // New flows for paper-based creation and merging (moved from Paper Scan tab)
+    @State private var showPaperImportOptions = false
+    @State private var showMergeOptions = false
+    @State private var paperImportIgnoreItems = false
+
+    // Present paper capture directly as a sheet from within the Warehouses tab
+    @State private var showPaperCaptureForWarehouse = false
+    @State private var viewingWarehouseStatus: VirtualWarehouse?
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                if savedWarehouses.isEmpty {
+                    emptyState
+                } else {
+                    List {
+                        ForEach(savedWarehouses) { warehouse in
+                            VStack(alignment: .leading, spacing: 8) {
+                                // Header row: name + active indicator
+                                HStack(alignment: .center, spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(warehouse.name)
+                                            .font(.headline)
+                                        Text("\(warehouse.totalLocations) positions")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    if activeWarehouseID == warehouse.id {
+                                        Label("Active", systemImage: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                            .font(.caption2)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.green.opacity(0.15))
+                                            .cornerRadius(6)
+                                    }
+                                }
+
+                                // Action buttons row - horizontal scroll prevents cramped or wrapping layout
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        Button {
+                                            viewingWarehouseStatus = warehouse
+                                        } label: {
+                                            Label("View", systemImage: "eye")
+                                                .font(.caption2)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+
+                                        Button {
+                                            setAsActive(warehouse)
+                                        } label: {
+                                            Label("Activate", systemImage: "target")
+                                                .font(.caption2)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+
+                                        Button {
+                                            editingWarehouse = warehouse
+                                        } label: {
+                                            Label("Edit", systemImage: "pencil")
+                                                .font(.caption2)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+
+                                        Button(role: .destructive) {
+                                            deleteWarehouse(warehouse)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                                .font(.caption2)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
+                VStack(spacing: 12) {
+                    Button {
+                        newWarehouseName = "New Warehouse - \(Date().formatted(date: .abbreviated, time: .omitted))"
+                        showCreateNew = true
+                    } label: {
+                        Label("Create New Empty Warehouse", systemImage: "plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button {
+                        // Future: present paper capture flow with option to ignore items
+                        showPaperImportOptions = true
+                    } label: {
+                        Label("Build from Paper Scan", systemImage: "doc.text.viewfinder")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        showMergeOptions = true
+                    } label: {
+                        Label("Merge Warehouses", systemImage: "arrow.triangle.merge")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding()
+            }
+            .navigationTitle("Warehouses")
+            .onAppear {
+                loadWarehouses()
+            }
+            .sheet(isPresented: $showCreateNew) {
+                createNewSheet
+            }
+            .sheet(item: $editingWarehouse) { warehouse in
+                NavigationView {
+                    VirtualWarehouseEditorView(warehouse: warehouse)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Done") {
+                                    editingWarehouse = nil
+                                    loadWarehouses()
+                                }
+                            }
+                            ToolbarItem(placement: .primaryAction) {
+                                Button("Empty All Positions") {
+                                    var cleared = warehouse
+                                    cleared.prepareAsEmptyTemplate(clearReferenceItems: false)
+                                    VirtualWarehouse.save(cleared)
+                                    editingWarehouse = cleared
+                                    loadWarehouses()
+                                }
+                            }
+                        }
+                }
+            }
+
+            // Paper import options sheet (structure + items or structure only)
+            .sheet(isPresented: $showPaperImportOptions) {
+                paperImportSheet
+            }
+
+            // Merge options
+            .sheet(isPresented: $showMergeOptions) {
+                mergeSheet
+            }
+
+            // Paper capture presented directly as a sheet from within the Warehouses tab
+            .sheet(isPresented: $showPaperCaptureForWarehouse) {
+                PaperScanView(comparisonViewModel: ComparisonViewModel())
+                    .onDisappear {
+                        // After user finishes in the paper capture, refresh the list
+                        loadWarehouses()
+                    }
+            }
+
+            // View current state of a saved warehouse (read-only status)
+            .sheet(item: $viewingWarehouseStatus) { warehouse in
+                VirtualWarehouseStatusView(warehouse: warehouse) {
+                    // User tapped "Edit Structure" from the status view
+                    editingWarehouse = warehouse
+                    viewingWarehouseStatus = nil
+                }
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "building.2")
+                .font(.largeTitle)
+                .foregroundColor(.secondary)
+
+            Text("No Warehouses Yet")
+                .font(.title2)
+
+            Text("Create an empty warehouse or build one from a paper scan. Then select it here before you start AR scanning.")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .padding(.horizontal)
+
+            Button {
+                newWarehouseName = "New Warehouse"
+                showCreateNew = true
+            } label: {
+                Label("Create New Warehouse", systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+    }
+
+    private var createNewSheet: some View {
+        NavigationView {
+            Form {
+                Section("Warehouse Details") {
+                    TextField("Warehouse Name", text: $newWarehouseName)
+                }
+
+                Section {
+                    Text("You can add positions, adjust numbering, and manage items after creation.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .navigationTitle("New Warehouse")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showCreateNew = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        createEmptyWarehouse()
+                    }
+                    .disabled(newWarehouseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
+    private func loadWarehouses() {
+        savedWarehouses = VirtualWarehouse.loadAll()
+        activeWarehouseID = scanViewModel.activeWarehouse?.id
+    }
+
+    private func setAsActive(_ warehouse: VirtualWarehouse) {
+        var prepared = warehouse
+        // Ensure it's clean for scanning use
+        prepared.prepareAsEmptyTemplate(clearReferenceItems: false)
+        scanViewModel.activeWarehouse = prepared
+        activeWarehouseID = prepared.id
+        // Persist so it's remembered
+        VirtualWarehouse.save(prepared)
+    }
+
+    private func deleteWarehouse(_ warehouse: VirtualWarehouse) {
+        VirtualWarehouse.delete(id: warehouse.id)
+        if scanViewModel.activeWarehouse?.id == warehouse.id {
+            scanViewModel.activeWarehouse = nil
+        }
+        loadWarehouses()
+    }
+
+    private func createEmptyWarehouse() {
+        let name = newWarehouseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        let newWarehouse = VirtualWarehouse(name: name)
+        VirtualWarehouse.save(newWarehouse)
+        showCreateNew = false
+        loadWarehouses()
+
+        // Open it immediately for editing
+        editingWarehouse = newWarehouse
+    }
+
+    // MARK: - Paper Import Sheet (moved from Paper Scan tab)
+
+    private var paperImportSheet: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                Text("Build Warehouse from Paper")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("The paper scanning interface will open. After you scan, use the creation buttons to build the warehouse directly from here.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    Button {
+                        paperImportIgnoreItems = false
+                        showPaperImportOptions = false
+                        showPaperCaptureForWarehouse = true   // Present capture sheet inside Warehouses
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text("Create with Items from Paper")
+                                .font(.headline)
+                            Text("Build the full warehouse including the item numbers written on the paper.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Button {
+                        paperImportIgnoreItems = true
+                        showPaperImportOptions = false
+                        showPaperCaptureForWarehouse = true   // Present capture sheet inside Warehouses
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text("Create Structure Only (ignore items)")
+                                .font(.headline)
+                            Text("Build only the location skeleton. The item numbers on the paper will be ignored.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Import from Paper")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showPaperImportOptions = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - Merge Sheet (moved from Paper Scan)
+
+    private var mergeSheet: some View {
+        NavigationView {
+            VStack {
+                Text("Merge Warehouses")
+                    .font(.title2)
+                    .padding(.bottom)
+
+                Text("Select a target warehouse to merge the current paper scan results into. This will be moved to a proper picker in a future update.")
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                    .padding()
+
+                // For now, simple action that switches to the old merge flow if user still has paper records
+                Button {
+                    showMergeOptions = false
+                    selectedTab = 2   // Switch to Paper Scan tab where merge is currently available
+                } label: {
+                    Text("Go to Paper Scan to Merge")
+                }
+                .buttonStyle(.borderedProminent)
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Merge")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showMergeOptions = false }
+                }
             }
         }
     }

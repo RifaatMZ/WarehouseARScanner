@@ -10,14 +10,21 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
-                ScannerView(scanViewModel: scanViewModel, inventoryViewModel: inventoryViewModel)
+                // New dedicated Warehouse management section
+                WarehousesTabView(scanViewModel: scanViewModel, selectedTab: $selectedTab)
                     .tag(0)
+                    .tabItem {
+                        Label("Warehouses", systemImage: "building.2")
+                    }
+
+                ScannerView(scanViewModel: scanViewModel, inventoryViewModel: inventoryViewModel)
+                    .tag(1)
                     .tabItem {
                         Label("AR Scan", systemImage: "arkit")
                     }
 
                 PaperScanView(comparisonViewModel: comparisonViewModel)
-                    .tag(1)
+                    .tag(2)
                     .tabItem {
                         Label("Paper Scan", systemImage: "doc.text.viewfinder")
                     }
@@ -27,7 +34,7 @@ struct ContentView: View {
                     inventoryViewModel: inventoryViewModel,
                     comparisonViewModel: comparisonViewModel
                 )
-                .tag(2)
+                .tag(3)
                 .tabItem {
                     Label("Results", systemImage: "list.clipboard")
                 }
@@ -42,6 +49,9 @@ struct ContentView: View {
                     scanViewModel.shouldNavigateToResults = false
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GoToWarehousesTab"))) { _ in
+            selectedTab = 0
         }
     }
 }

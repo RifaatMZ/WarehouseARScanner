@@ -116,18 +116,34 @@ extension WarehouseLabelRange {
 
 // MARK: - Virtual Warehouse Models (for building warehouse from paper scans)
 
+// Represents one physical item scanned at a location (supports multiple items per bin).
+struct CurrentItem: Codable, Equatable, Identifiable {
+    var id = UUID()
+    var itemNumber: String
+    var lastScanned: Date?
+    var quantity: Int?
+    var notes: String?
+}
+
 struct VirtualLocation: Identifiable, Codable, Equatable {
     var id = UUID()
     var section: String
     var row: String
     var column: String
 
-    /// Item from the original paper inventory list (reference / expected).
-    /// This is kept for reference but the "saved warehouse" the user loads for floor use
-    /// should generally be treated as empty positions.
+    /// Items from the original paper inventory list (reference / expected).
+    /// Supports multiple items per location.
+    var referenceItems: [String] = []
+
+    /// Items actually found at this position via live AR scanning on the floor.
+    /// Supports multiple items per location.
+    var currentItems: [CurrentItem] = []
+
+    // --- Legacy single-item fields (kept for migration + backward compat) ---
+    /// Legacy: single reference item from paper. Will be migrated into referenceItems on load.
     var referenceItemNumber: String?
 
-    /// Item actually found at this position via live AR scanning on the floor.
+    /// Legacy: single current item. Will be migrated into currentItems on load.
     var currentItemNumber: String?
 
     var description: String?
@@ -147,9 +163,37 @@ struct VirtualLocation: Identifiable, Codable, Equatable {
         return "\(section)-\(row)-\(column)"
     }
 
-    /// Convenience: shows the live scanned item if present, otherwise the paper reference.
+    /// Convenience for old code / simple display: first current or first reference.
     var effectiveItemNumber: String? {
-        currentItemNumber ?? referenceItemNumber
+        currentItems.first?.itemNumber ?? referenceItems.first ?? currentItemNumber ?? referenceItemNumber
+    }
+
+    /// All items (current + legacy) for display purposes.
+    var allCurrentItems: [String] {
+        var items = currentItems.map { $0.itemNumber }
+        if let legacy = currentItemNumber, !items.contains(legacy) {
+            items.append(legacy)
+        }
+        return items
+    }
+
+    /// Migrates legacy single-item fields into the new array-based fields.
+    /// Safe to call multiple times.
+    mutating func migrateLegacyItemFields() {
+        // Migrate reference
+        if let legacyRef = referenceItemNumber, !referenceItems.contains(legacyRef) {
+            referenceItems.append(legacyRef)
+        }
+        referenceItemNumber = nil   // clear legacy after migration
+
+        // Migrate current
+        if let legacyCur = currentItemNumber {
+            let alreadyExists = currentItems.contains { $0.itemNumber == legacyCur }
+            if !alreadyExists {
+                currentItems.append(CurrentItem(itemNumber: legacyCur, lastScanned: lastARScan))
+            }
+        }
+        currentItemNumber = nil
     }
 }
 
@@ -276,7 +320,9 @@ extension VirtualWarehouse {
                     var row = section.rows[rowIndex]
 
                     if let locIndex = row.locations.firstIndex(where: { $0.column == columnName }) {
-                        row.locations[locIndex].referenceItemNumber = record.itemNumber
+                        if !record.itemNumber.isEmpty && !row.locations[locIndex].referenceItems.contains(record.itemNumber) {
+                            row.locations[locIndex].referenceItems.append(record.itemNumber)
+                        }
                         row.locations[locIndex].lastScanned = record.timestamp
                         if row.locations[locIndex].originalLabel == nil {
                             row.locations[locIndex].originalLabel = record.location
@@ -286,7 +332,7 @@ extension VirtualWarehouse {
                             section: sectionName,
                             row: rowName,
                             column: columnName,
-                            referenceItemNumber: record.itemNumber,
+                            referenceItems: record.itemNumber.isEmpty ? [] : [record.itemNumber],
                             lastScanned: record.timestamp,
                             originalLabel: record.location
                         )
@@ -298,7 +344,7 @@ extension VirtualWarehouse {
                         section: sectionName,
                         row: rowName,
                         column: columnName,
-                        referenceItemNumber: record.itemNumber,
+                        referenceItems: record.itemNumber.isEmpty ? [] : [record.itemNumber],
                         lastScanned: record.timestamp,
                         originalLabel: record.location
                     )
@@ -311,7 +357,7 @@ extension VirtualWarehouse {
                     section: sectionName,
                     row: rowName,
                     column: columnName,
-                    referenceItemNumber: record.itemNumber,
+                    referenceItems: record.itemNumber.isEmpty ? [] : [record.itemNumber],
                     lastScanned: record.timestamp,
                     originalLabel: record.location
                 )
@@ -348,7 +394,11 @@ extension VirtualWarehouse {
                     if let newSection { location.section = newSection }
                     if let newRow { location.row = newRow }
                     if let newColumn { location.column = newColumn }
-                    if let newItemNumber { location.referenceItemNumber = newItemNumber }
+                    if let newItemNumber {
+                        if !location.referenceItems.contains(newItemNumber) {
+                            location.referenceItems.append(newItemNumber)
+                        }
+                    }
                     if let newOriginalLabel { location.originalLabel = newOriginalLabel }
 
                     var updatedRow = row
@@ -392,7 +442,7 @@ extension VirtualWarehouse {
             section: section,
             row: row,
             column: column,
-            referenceItemNumber: itemNumber,
+            referenceItems: (itemNumber?.isEmpty == false) ? [itemNumber!] : [],
             originalLabel: cleanOriginal
         )
         if let sIndex = sections.firstIndex(where: { $0.section == section }) {
@@ -419,9 +469,9 @@ extension VirtualWarehouse {
             for rIndex in sections[sIndex].rows.indices {
                 for lIndex in sections[sIndex].rows[rIndex].locations.indices {
                     if clearReferenceItems {
-                        sections[sIndex].rows[rIndex].locations[lIndex].referenceItemNumber = nil
+                        sections[sIndex].rows[rIndex].locations[lIndex].referenceItems = []
                     }
-                    sections[sIndex].rows[rIndex].locations[lIndex].currentItemNumber = nil
+                    sections[sIndex].rows[rIndex].locations[lIndex].currentItems = []
                     sections[sIndex].rows[rIndex].locations[lIndex].lastARScan = nil
                 }
             }
@@ -430,13 +480,24 @@ extension VirtualWarehouse {
     }
 
     /// Finds a location inside this warehouse by its formatted location string (best effort).
+    /// Uses multiple normalization strategies to improve matching between paper-built
+    /// warehouses and live AR detections.
     func findLocation(matching locationLabel: String) -> VirtualLocation? {
-        let target = locationLabel.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let raw = locationLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let upper = raw.uppercased()
+        let cleaned = cleanForMatching(raw)
+
         for section in sections {
             for row in section.rows {
                 for loc in row.locations {
-                    if loc.formattedLocation.uppercased() == target ||
-                       loc.originalLabel?.uppercased() == target {
+                    let candidates: [String] = [
+                        loc.formattedLocation,
+                        loc.originalLabel ?? "",
+                        loc.formattedLocation.replacingOccurrences(of: "-", with: ""),
+                        loc.originalLabel?.replacingOccurrences(of: "-", with: "") ?? ""
+                    ].map { $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }
+
+                    if candidates.contains(upper) || candidates.contains(cleaned) {
                         return loc
                     }
                 }
@@ -446,26 +507,44 @@ extension VirtualWarehouse {
     }
 
     /// Updates a position with data coming from live AR scanning.
+    /// Supports multiple items per location — appends instead of overwriting.
     /// Returns true if a matching position was found and updated.
     mutating func recordARScan(at locationLabel: String, itemNumber: String?, timestamp: Date = Date()) -> Bool {
-        let target = locationLabel.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard let item = itemNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !item.isEmpty else {
+            return false
+        }
+        guard let found = findLocation(matching: locationLabel) else {
+            return false
+        }
 
+        // Find the location by id and append the new item (if not already present)
         for sIndex in sections.indices {
             for rIndex in sections[sIndex].rows.indices {
-                for lIndex in sections[sIndex].rows[rIndex].locations.indices {
-                    let loc = sections[sIndex].rows[rIndex].locations[lIndex]
-                    if loc.formattedLocation.uppercased() == target ||
-                       loc.originalLabel?.uppercased() == target {
+                if let lIndex = sections[sIndex].rows[rIndex].locations.firstIndex(where: { $0.id == found.id }) {
+                    let alreadyExists = sections[sIndex].rows[rIndex].locations[lIndex].currentItems.contains { $0.itemNumber == item }
 
-                        sections[sIndex].rows[rIndex].locations[lIndex].currentItemNumber = itemNumber
-                        sections[sIndex].rows[rIndex].locations[lIndex].lastARScan = timestamp
-                        self.lastUpdated = Date()
-                        return true
+                    if !alreadyExists {
+                        let newItem = CurrentItem(itemNumber: item, lastScanned: timestamp)
+                        sections[sIndex].rows[rIndex].locations[lIndex].currentItems.append(newItem)
                     }
+
+                    sections[sIndex].rows[rIndex].locations[lIndex].lastARScan = timestamp
+                    self.lastUpdated = Date()
+                    return true
                 }
             }
         }
         return false
+    }
+
+    /// Lightweight normalization used only for matching (not for display or storage).
+    private func cleanForMatching(_ input: String) -> String {
+        return input.uppercased()
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "–", with: "")
+            .replacingOccurrences(of: "—", with: "")
     }
 
     /// Returns a flattened list of all locations in the logical scanning order
@@ -478,6 +557,17 @@ extension VirtualWarehouse {
             }
         }
         return result
+    }
+
+    /// Migrates legacy single-item data on all locations (called on load).
+    mutating func migrateAllLocations() {
+        for sIndex in sections.indices {
+            for rIndex in sections[sIndex].rows.indices {
+                for lIndex in sections[sIndex].rows[rIndex].locations.indices {
+                    sections[sIndex].rows[rIndex].locations[lIndex].migrateLegacyItemFields()
+                }
+            }
+        }
     }
 }
 
@@ -522,7 +612,9 @@ extension VirtualWarehouse {
         return files.compactMap { url in
             guard url.pathExtension == "json",
                   let data = try? Data(contentsOf: url) else { return nil }
-            return try? JSONDecoder().decode(VirtualWarehouse.self, from: data)
+            var warehouse = try? JSONDecoder().decode(VirtualWarehouse.self, from: data)
+            warehouse?.migrateAllLocations()
+            return warehouse
         }.sorted { $0.lastUpdated > $1.lastUpdated }
     }
 
